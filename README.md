@@ -1,23 +1,20 @@
 # JupyterLab ROCm Container
 
-Minimal JupyterLab environment with ROCm GPU support designed for persistent storage and easy extension installation.
-
-## Features
-- ROCm GPU support
-- JupyterLab 4
-- PyTorch ROCm
-- Git CLI installed
-- `jupyterlab-git` extension
-- Web UI extension installs enabled
-- Modern dark theme available (Catppuccin)
-- Persistent config and workspace
+- Small ROCm-based JupyterLab image
+- Includes:
+  - JupyterLab 4
+  - Git CLI
+  - `jupyterlab-git`
+  - Catppuccin theme
+- Does **not** bake Torch into the image
+- Torch installs separately into mapped `/venv`
 
 ## Volume Mappings
 
-- `/root/.cache` → model caches (huggingface, etc.)
+- `/root/.cache` → model caches
 - `/pip-cache` → pip download cache
-- `/venv` → optional persistent python packages
-- `/tmp-pip` → pip temporary extraction
+- `/venv` → persistent Python packages like Torch
+- `/tmp-pip` → pip temp extraction
 - `/data/home` → Jupyter config, extensions, user packages
 - `/workspace` → notebooks and projects
 
