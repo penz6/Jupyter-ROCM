@@ -21,8 +21,10 @@ RUN python3 -m pip install --break-system-packages --user --upgrade pip setuptoo
     python3 -m pip install --break-system-packages --user --upgrade \
       jupyterlab \
       jupyterlab-git \
-      catppuccin-jupyterlab \
-      torch --pre --index-url https://download.pytorch.org/whl/nightly/rocm7.2
+      catppuccin-jupyterlab && \
+    python3 -m pip install --break-system-packages --user --pre \
+      --index-url https://download.pytorch.org/whl/nightly/rocm7.2 \
+      torch
 
 EXPOSE 8888
 
