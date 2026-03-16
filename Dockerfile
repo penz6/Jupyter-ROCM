@@ -15,17 +15,20 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends git python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/runtime /workspace /tmp-pip /pip-cache
+RUN mkdir -p \
+    /data/home/.jupyter \
+    /data/home/.local/share/jupyter/runtime \
+    /workspace \
+    /tmp-pip \
+    /pip-cache \
+    /venv
 
 RUN python3 -m pip install --break-system-packages --user --upgrade pip setuptools wheel && \
     python3 -m pip install --break-system-packages --user --upgrade \
       jupyterlab \
       jupyterlab-git \
-      catppuccin-jupyterlab && \
-    python3 -m pip install --break-system-packages --user --pre \
-      --index-url https://download.pytorch.org/whl/nightly/rocm7.2 \
-      torch
+      catppuccin-jupyterlab
 
 EXPOSE 8888
 
-CMD ["bash", "-lc", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.root_dir=/workspace --ServerApp.preferred_dir=/workspace --IdentityProvider.token='' --PasswordIdentityProvider.hashed_password=''"]
+CMD ["bash", "-lc", "mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/runtime /workspace /venv && export PYTHONPATH=/venv && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.root_dir=/workspace --ServerApp.preferred_dir=/workspace --IdentityProvider.token='' --PasswordIdentityProvider.hashed_password=''"]
