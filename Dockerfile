@@ -28,15 +28,14 @@ WORKDIR /workspace
 CMD ["bash", "-lc", "\
   mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/runtime /data/home/bin && \
   export HOME=/data/home && \
-  export PATH=/data/home/bin:/data/home/.local/bin:$PATH && \
+  export PATH=/venv/bin:/data/home/bin:/data/home/.local/bin:$PATH && \
   export TMPDIR=/tmp-pip && \
   export PIP_CACHE_DIR=/pip-cache && \
   export JUPYTER_CONFIG_DIR=/data/home/.jupyter && \
   export JUPYTER_DATA_DIR=/data/home/.local/share/jupyter && \
   export JUPYTER_RUNTIME_DIR=/data/home/.local/share/jupyter/runtime && \
-  if [ -f /venv/bin/python ] && [ ! -f /venv/bin/pip ]; then \
-    python3 -m ensurepip --root /venv || true && \
-    python3 -m pip install --target=/venv/lib/python3.12/site-packages pip setuptools; \
+  if [ ! -f /venv/bin/pip ]; then \
+    python3 -m venv /venv --upgrade --upgrade-deps; \
   fi && \
   if [ -f /venv/bin/pip ]; then \
     if ! /venv/bin/python -m ipykernel --version &>/dev/null; then \
