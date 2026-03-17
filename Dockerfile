@@ -27,7 +27,7 @@ RUN python3 -m pip install --break-system-packages --user --upgrade pip setuptoo
     python3 -m pip install --break-system-packages --user --upgrade \
       jupyterlab \
       jupyterlab-git \
-      catppuccin-jupyterlab
+      jupyterlab-night
 
 EXPOSE 8888
 
