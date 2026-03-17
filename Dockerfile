@@ -22,7 +22,7 @@ RUN python3 -m pip install --break-system-packages --upgrade pip setuptools whee
     python3 -m pip install --break-system-packages --upgrade \
       jupyterlab \
       jupyterlab-git \
-      jupyterlab-night
+      catppuccin-jupyterlab
 
 EXPOSE 8888
 
