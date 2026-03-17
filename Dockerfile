@@ -27,7 +27,7 @@ EXPOSE 8888
 WORKDIR /workspace
 
 CMD ["bash", "-lc", "\
-  mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/runtime /data/home/bin && \
+  mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/kernels /data/home/.local/share/jupyter/runtime /data/home/bin && \
   export HOME=/data/home && \
   export PATH=/venv/bin:/data/home/bin:/data/home/.local/bin:$PATH && \
   export TMPDIR=/tmp-pip && \
@@ -43,7 +43,10 @@ CMD ["bash", "-lc", "\
     if ! /venv/bin/python -m ipykernel --version &>/dev/null; then \
       /venv/bin/pip install --no-cache-dir ipykernel; \
     fi && \
-    /venv/bin/python -m ipykernel install --user --name=venv --display-name='Python (venv)'; \
+    /venv/bin/python -m ipykernel install \
+      --install-dir=/data/home/.local/share/jupyter/kernels \
+      --name=venv \
+      --display-name='Python (venv)'; \
   fi && \
   jupyter lab \
     --ip=0.0.0.0 \
