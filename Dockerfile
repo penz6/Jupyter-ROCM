@@ -34,10 +34,14 @@ CMD ["bash", "-lc", "\
   export JUPYTER_CONFIG_DIR=/data/home/.jupyter && \
   export JUPYTER_DATA_DIR=/data/home/.local/share/jupyter && \
   export JUPYTER_RUNTIME_DIR=/data/home/.local/share/jupyter/runtime && \
-  if [ -f /venv/bin/python ] && ! /venv/bin/python -m ipykernel --version &>/dev/null; then \
-    /venv/bin/pip install --no-cache-dir ipykernel && \
-    /venv/bin/python -m ipykernel install --user --name=venv --display-name='Python (venv)'; \
-  elif [ -f /venv/bin/python ]; then \
+  if [ -f /venv/bin/python ] && [ ! -f /venv/bin/pip ]; then \
+    python3 -m ensurepip --root /venv || true && \
+    python3 -m pip install --target=/venv/lib/python3.12/site-packages pip setuptools; \
+  fi && \
+  if [ -f /venv/bin/pip ]; then \
+    if ! /venv/bin/python -m ipykernel --version &>/dev/null; then \
+      /venv/bin/pip install --no-cache-dir ipykernel; \
+    fi && \
     /venv/bin/python -m ipykernel install --user --name=venv --display-name='Python (venv)'; \
   fi && \
   jupyter lab \
