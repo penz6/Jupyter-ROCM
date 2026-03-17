@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git \
+    curl \
     python3-pip \
     python3-dev \
     python3-venv \
@@ -35,7 +36,8 @@ CMD ["bash", "-lc", "\
   export JUPYTER_DATA_DIR=/data/home/.local/share/jupyter && \
   export JUPYTER_RUNTIME_DIR=/data/home/.local/share/jupyter/runtime && \
   if [ ! -f /venv/bin/pip ]; then \
-    python3 -m venv /venv --upgrade --upgrade-deps; \
+    curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && \
+    /venv/bin/python /tmp/get-pip.py --no-cache-dir; \
   fi && \
   if [ -f /venv/bin/pip ]; then \
     if ! /venv/bin/python -m ipykernel --version &>/dev/null; then \
