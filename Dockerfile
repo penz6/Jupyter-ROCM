@@ -1,23 +1,21 @@
 FROM rocm/dev-ubuntu-24.04:latest
 
 # 1. Environment Configuration
+# HSA_OVERRIDE_GFX_VERSION is mandatory for RX 6750 XT (Navi 22)
+# LD_LIBRARY_PATH is set with a fallback to avoid Docker build warnings
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     HOME=/data/home \
-    # Mandatory for RX 6750 XT (Navi 22)
     HSA_OVERRIDE_GFX_VERSION=10.3.0 \
-    # Critical: Tells TensorFlow where the slim ROCm libraries live
-    LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH} \
+    LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH:-} \
     PATH="/venv/bin:/data/home/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     PIP_CACHE_DIR=/pip-cache \
     TMPDIR=/tmp-pip
 
-# 2. System Dependencies (Surgical Install to avoid 11GB bloat)
-# We only install the runtimes and the specific 6750 XT (gfx1030) kernels.
+# 2. System Dependencies (Slimmed for RX 6750 XT)
+# Using --no-install-recommends is what keeps this from being 11GB.
 RUN apt-get update && \
-    # --- FIX: Prioritize AMD Repo over Ubuntu Stock ---
     echo "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600" > /etc/apt/preferences.d/rocm-pin-600 && \
-    \
     apt-get install -y --no-install-recommends \
     git \
     curl \
@@ -27,17 +25,15 @@ RUN apt-get update && \
     build-essential \
     libgl1 \
     libglib2.0-0 \
-    # Essential ROCm runtimes
+    # Core ROCm runtimes for TensorFlow
     hip-runtime-amd \
     rccl \
     rocblas \
-    # Target your 6750 XT specifically
-    miopen-hip-gfx1030kdb && \
-    \
+    miopen-hip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Bake Jupyter into the System (Ensures UI is always available)
+# 3. Bake Jupyter into the Image (System Level)
 RUN pip install --no-cache-dir --break-system-packages \
     jupyterlab \
     jupyterlab-git \
@@ -47,31 +43,34 @@ RUN pip install --no-cache-dir --break-system-packages \
 # 4. Create Mount Point Placeholders
 RUN mkdir -p /workspace /data/home /venv /root/.cache /pip-cache /tmp-pip
 
+# 5. Workspace Setup
 WORKDIR /workspace
 EXPOSE 8888
 
-# 5. Startup Logic for Persistent Volume
+# 6. Startup Script Logic for Persistent Volume
 CMD ["bash", "-c", "\
+    # Ensure directory structure in persistent home \
     mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/kernels /data/home/.local/share/jupyter/runtime /data/home/bin && \
     \
-    # If the persistent venv is empty, initialize it once
+    # Initialize venv if the volume is empty \
     if [ ! -f /venv/bin/python ]; then \
-        echo '--- Persistent venv empty. Initializing on volume... ---'; \
+        echo '--- Persistent venv empty. Initializing... ---'; \
         python3 -m venv /venv && \
         /venv/bin/pip install --upgrade pip; \
-        # Install TF-ROCm with the specific ROCm 7.2 index
+        echo '--- Installing TensorFlow-ROCm ---'; \
         /venv/bin/pip install --no-cache-dir \
             tensorflow-rocm==2.19.1 \
             -f https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/; \
-        echo '--- Venv and TensorFlow ready on persistent volume. ---'; \
+        echo '--- Venv and TensorFlow ready. ---'; \
     fi; \
     \
-    # Refresh kernel registration to the persistent home
+    # Register the persistent venv kernel \
     /venv/bin/python -m ipykernel install \
         --name=venv \
         --display-name='Python (venv)' \
         --data-dir=/data/home/.local/share/jupyter && \
     \
+    # Start Jupyter Lab \
     echo '--- Starting Jupyter Lab ---'; \
     jupyter lab \
         --ip=0.0.0.0 \
