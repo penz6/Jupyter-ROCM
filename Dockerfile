@@ -1,4 +1,6 @@
-FROM rocm/dev-ubuntu-24.04:7.2
+from pathlib import Path
+
+dockerfile = r'''FROM rocm/dev-ubuntu-24.04:7.2
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -6,8 +8,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     XDG_CACHE_HOME=/data/home/.cache \
     JUPYTER_CONFIG_DIR=/data/home/.jupyter \
     JUPYTER_DATA_DIR=/data/home/.local/share/jupyter \
-    PIP_CACHE_DIR=/pip-cache \
-    TMPDIR=/tmp-pip \
     HF_HOME=/data/home/.cache/huggingface \
     HSA_OVERRIDE_GFX_VERSION=10.3.0 \
     LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH:-} \
@@ -32,9 +32,7 @@ RUN mkdir -p \
       /data/home \
       /data/home/.cache \
       /data/home/.jupyter \
-      /data/home/.local/share/jupyter \
-      /pip-cache \
-      /tmp-pip
+      /data/home/.local/share/jupyter
 
 WORKDIR /workspace
 EXPOSE 8888
@@ -46,21 +44,24 @@ mkdir -p \
   \"$HOME/.cache/huggingface\" \
   \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension\" \
   \"$JUPYTER_DATA_DIR\" \
-  /pip-cache \
-  /tmp-pip \
   /workspace; \
 if [ ! -x /venv/bin/python ]; then \
   echo '--- Creating venv on persistent volume ---'; \
   python3 -m venv /venv; \
 fi; \
-/venv/bin/pip install --upgrade pip setuptools wheel; \
+echo '--- Ensuring Jupyter is installed in /venv ---'; \
+/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel; \
 if [ ! -x /venv/bin/jupyter ]; then \
-  echo '--- Installing JupyterLab into persistent venv ---'; \
-  /venv/bin/pip install jupyterlab ipykernel; \
+  /venv/bin/pip install --no-cache-dir jupyterlab ipykernel; \
 fi; \
-if [ ! -f \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" ]; then \
-  cat > \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" <<'JSON'\n{\n  \"theme\": \"JupyterLab Dark\",\n  \"theme-scrollbars\": true\n}\nJSON\nfi; \
-/venv/bin/python -m ipykernel install --user --name venv --display-name 'Python (venv)' >/dev/null 2>&1 || true; \
+cat > \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" <<'JSON'\n\
+{\n\
+  \"theme\": \"JupyterLab Dark\",\n\
+  \"theme-scrollbars\": true\n\
+}\n\
+JSON\n\
+/venv/bin/python -m ipykernel install --sys-prefix --name venv --display-name 'Python (venv)' >/dev/null 2>&1 || true; \
+echo '--- Launching JupyterLab from /venv ---'; \
 exec /venv/bin/jupyter lab \
   --ip=0.0.0.0 \
   --port=8888 \
@@ -69,3 +70,8 @@ exec /venv/bin/jupyter lab \
   --ServerApp.root_dir=/workspace \
   --ServerApp.token='' \
 "]
+'''
+
+path = Path("/mnt/data/Dockerfile-fixed")
+path.write_text(dockerfile)
+print(path)
