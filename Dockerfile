@@ -1,6 +1,4 @@
-from pathlib import Path
-
-dockerfile = r'''FROM rocm/dev-ubuntu-24.04:7.2
+FROM rocm/dev-ubuntu-24.04:7.2
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -70,8 +68,3 @@ exec /venv/bin/jupyter lab \
   --ServerApp.root_dir=/workspace \
   --ServerApp.token='' \
 "]
-'''
-
-path = Path("/mnt/data/Dockerfile-fixed")
-path.write_text(dockerfile)
-print(path)
