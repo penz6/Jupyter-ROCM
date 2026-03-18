@@ -37,6 +37,8 @@ EXPOSE 8888
 
 CMD ["bash", "-lc", "\
 set -e; \
+unset PIP_USER; \
+export PIP_CONFIG_FILE=/dev/null; \
 mkdir -p \
   \"$HOME/.cache\" \
   \"$HOME/.cache/huggingface\" \
@@ -48,9 +50,9 @@ if [ ! -x /venv/bin/python ]; then \
   python3 -m venv /venv; \
 fi; \
 echo '--- Ensuring Jupyter is installed in /venv ---'; \
-/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel; \
-if [ ! -x /venv/bin/jupyter ]; then \
-  /venv/bin/pip install --no-cache-dir jupyterlab ipykernel; \
+/venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel; \
+if ! /venv/bin/python -c 'import jupyterlab, ipykernel' >/dev/null 2>&1; then \
+  /venv/bin/python -m pip install --no-cache-dir jupyterlab ipykernel; \
 fi; \
 cat > \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" <<'JSON'\n\
 {\n\
@@ -60,7 +62,7 @@ cat > \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.j
 JSON\n\
 /venv/bin/python -m ipykernel install --sys-prefix --name venv --display-name 'Python (venv)' >/dev/null 2>&1 || true; \
 echo '--- Launching JupyterLab from /venv ---'; \
-exec /venv/bin/jupyter lab \
+exec /venv/bin/python -m jupyterlab \
   --ip=0.0.0.0 \
   --port=8888 \
   --no-browser \
