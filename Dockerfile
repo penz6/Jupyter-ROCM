@@ -1,17 +1,19 @@
 FROM rocm/dev-ubuntu-24.04:latest
 
 # 1. Environment Configuration
-# We set HSA_OVERRIDE_GFX_VERSION for RDNA2 (RX 6000) compatibility
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     HOME=/data/home \
+    # Mandatory for RX 6750 XT (Navi 22)
     HSA_OVERRIDE_GFX_VERSION=10.3.0 \
+    # Critical: Tells TensorFlow where the slim ROCm libraries live
+    LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH} \
     PATH="/venv/bin:/data/home/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     PIP_CACHE_DIR=/pip-cache \
     TMPDIR=/tmp-pip
 
-# 2. System Dependencies
-# Added libgl1 and libglib2.0 for OpenCV/Vision support often used with ROCm
+# 2. System Dependencies (Surgical Install to avoid 11GB bloat)
+# We only install the runtimes and the specific 6750 XT (gfx1030) kernels.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git \
@@ -21,12 +23,16 @@ RUN apt-get update && \
     python3-venv \
     build-essential \
     libgl1 \
-    libglib2.0-0 && \
+    libglib2.0-0 \
+    # Essential ROCm runtimes for TensorFlow
+    hip-runtime-amd \
+    rccl \
+    rocblas \
+    miopen-hip-gfx1030kdb && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Bake Jupyter into the Image
-# We use --break-system-packages because Ubuntu 24.04 restricts system pip by default.
-# This ensures Jupyter is ALWAYS available even if /venv is wiped.
+# 3. Bake Jupyter into the System (Ensures UI is always available)
 RUN pip install --no-cache-dir --break-system-packages \
     jupyterlab \
     jupyterlab-git \
@@ -36,31 +42,31 @@ RUN pip install --no-cache-dir --break-system-packages \
 # 4. Create Mount Point Placeholders
 RUN mkdir -p /workspace /data/home /venv /root/.cache /pip-cache /tmp-pip
 
-# 5. Workspace Setup
 WORKDIR /workspace
 EXPOSE 8888
 
-# 6. Startup Script Logic
-# This bootstraps the venv on the first run and starts Jupyter Lab.
+# 5. Startup Logic for Persistent Volume
 CMD ["bash", "-c", "\
-    # Ensure internal directory structure for Jupyter in the persistent mount \
     mkdir -p /data/home/.jupyter /data/home/.local/share/jupyter/kernels /data/home/.local/share/jupyter/runtime /data/home/bin && \
     \
-    # Check if the persistent venv is initialized \
+    # If the persistent venv is empty, initialize it once
     if [ ! -f /venv/bin/python ]; then \
-        echo '--- Persistent venv not found. Initializing... ---'; \
+        echo '--- Persistent venv empty. Initializing on volume... ---'; \
         python3 -m venv /venv && \
         /venv/bin/pip install --upgrade pip; \
-        echo '--- Venv initialized successfully. ---'; \
+        # Install TF-ROCm with the specific ROCm 7.2 index
+        /venv/bin/pip install --no-cache-dir \
+            tensorflow-rocm==2.19.1 \
+            -f https://repo.radeon.com/rocm/manylinux/rocm-rel-7.2/; \
+        echo '--- Venv and TensorFlow ready on persistent volume. ---'; \
     fi; \
     \
-    # Register/Refresh the venv kernel so it points to the persistent mount \
+    # Refresh kernel registration to the persistent home
     /venv/bin/python -m ipykernel install \
         --name=venv \
         --display-name='Python (venv)' \
         --data-dir=/data/home/.local/share/jupyter && \
     \
-    # Start Jupyter Lab \
     echo '--- Starting Jupyter Lab ---'; \
     jupyter lab \
         --ip=0.0.0.0 \
