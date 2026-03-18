@@ -15,6 +15,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # 2. System Dependencies (Surgical Install to avoid 11GB bloat)
 # We only install the runtimes and the specific 6750 XT (gfx1030) kernels.
 RUN apt-get update && \
+    # --- FIX: Prioritize AMD Repo over Ubuntu Stock ---
+    echo "Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600" > /etc/apt/preferences.d/rocm-pin-600 && \
+    \
     apt-get install -y --no-install-recommends \
     git \
     curl \
@@ -24,11 +27,13 @@ RUN apt-get update && \
     build-essential \
     libgl1 \
     libglib2.0-0 \
-    # Essential ROCm runtimes for TensorFlow
+    # Essential ROCm runtimes
     hip-runtime-amd \
     rccl \
     rocblas \
+    # Target your 6750 XT specifically
     miopen-hip-gfx1030kdb && \
+    \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
