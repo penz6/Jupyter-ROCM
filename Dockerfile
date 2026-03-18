@@ -1,42 +1,71 @@
-FROM ubuntu:24.04
+FROM rocm/dev-ubuntu-24.04:7.2
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
+    HOME=/data/home \
+    XDG_CACHE_HOME=/data/home/.cache \
+    JUPYTER_CONFIG_DIR=/data/home/.jupyter \
+    JUPYTER_DATA_DIR=/data/home/.local/share/jupyter \
+    PIP_CACHE_DIR=/pip-cache \
+    TMPDIR=/tmp-pip \
+    HF_HOME=/data/home/.cache/huggingface \
     HSA_OVERRIDE_GFX_VERSION=10.3.0 \
     LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH:-} \
-    PATH="/venv/bin:/data/home/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    HOME=/data/home
+    PATH="/venv/bin:/data/home/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates wget gnupg2 curl git \
-      python3 python3-pip python3-venv \
-      libgl1 libglib2.0-0 && \
-    mkdir -p /etc/apt/keyrings && \
-    wget -qO - https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg && \
-    printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600\n' > /etc/apt/preferences.d/rocm-pin-600 && \
-    echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2/ noble main' > /etc/apt/sources.list.d/rocm.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-      rocm-core \
-      hsa-rocr \
-      hip-runtime-amd \
+      python3 \
+      python3-pip \
+      python3-venv \
+      git \
+      curl \
+      ca-certificates \
+      libgl1 \
+      libglib2.0-0 \
       rocminfo \
-      rocblas \
-      miopen-hip && \
-    python3 -m pip install --no-cache-dir --break-system-packages \
-      jupyterlab ipykernel && \
+      rocm-smi-lib && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /workspace /data/home /venv
+RUN mkdir -p \
+      /workspace \
+      /venv \
+      /data/home \
+      /data/home/.cache \
+      /data/home/.jupyter \
+      /data/home/.local/share/jupyter \
+      /pip-cache \
+      /tmp-pip
+
 WORKDIR /workspace
 EXPOSE 8888
 
 CMD ["bash", "-lc", "\
+set -e; \
+mkdir -p \
+  \"$HOME/.cache\" \
+  \"$HOME/.cache/huggingface\" \
+  \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension\" \
+  \"$JUPYTER_DATA_DIR\" \
+  /pip-cache \
+  /tmp-pip \
+  /workspace; \
 if [ ! -x /venv/bin/python ]; then \
   echo '--- Creating venv on persistent volume ---'; \
-  python3 -m venv /venv && \
-  /venv/bin/pip install --upgrade pip; \
-fi && \
-/venv/bin/python -m ipykernel install --user --name venv --display-name 'Python (venv)' && \
-exec jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token='' \
+  python3 -m venv /venv; \
+fi; \
+/venv/bin/pip install --upgrade pip setuptools wheel; \
+if [ ! -x /venv/bin/jupyter ]; then \
+  echo '--- Installing JupyterLab into persistent venv ---'; \
+  /venv/bin/pip install jupyterlab ipykernel; \
+fi; \
+if [ ! -f \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" ]; then \
+  cat > \"$HOME/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings\" <<'JSON'\n{\n  \"theme\": \"JupyterLab Dark\",\n  \"theme-scrollbars\": true\n}\nJSON\nfi; \
+/venv/bin/python -m ipykernel install --user --name venv --display-name 'Python (venv)' >/dev/null 2>&1 || true; \
+exec /venv/bin/jupyter lab \
+  --ip=0.0.0.0 \
+  --port=8888 \
+  --no-browser \
+  --allow-root \
+  --ServerApp.root_dir=/workspace \
+  --ServerApp.token='' \
 "]
