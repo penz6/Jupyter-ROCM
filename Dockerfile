@@ -1,4 +1,4 @@
-FROM rocm/dev-ubuntu-24.04:7.2
+FROM rocm/tensorflow:rocm7.2-py3.12-tf2.19-dev
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -8,21 +8,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
     JUPYTER_DATA_DIR=/data/home/.local/share/jupyter \
     HF_HOME=/data/home/.cache/huggingface \
     HSA_OVERRIDE_GFX_VERSION=10.3.0 \
-    LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH:-} \
-    PATH="/venv/bin:/data/home/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    PATH="/venv/bin:/data/home/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 \
-      python3-pip \
       python3-venv \
       git \
       curl \
       ca-certificates \
       libgl1 \
-      libglib2.0-0 \
-      rocminfo \
-      rocm-smi-lib \
-      rocm-ml-libraries && \
+      libglib2.0-0 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p \
@@ -47,8 +41,8 @@ mkdir -p \
   \"$JUPYTER_DATA_DIR\" \
   /workspace; \
 if [ ! -x /venv/bin/python ]; then \
-  echo '--- Creating venv on persistent volume ---'; \
-  python3 -m venv /venv; \
+  echo '--- Creating venv on persistent volume (with system packages) ---'; \
+  python3 -m venv --system-site-packages /venv; \
 fi; \
 echo '--- Ensuring Jupyter is installed in /venv ---'; \
 /venv/bin/python -m pip install --no-cache-dir --upgrade pip setuptools wheel; \
